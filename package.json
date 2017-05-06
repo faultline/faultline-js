@@ -34,7 +34,7 @@
     "files": [
         "dist/",
         "README.md",
-        "LICENSE"
+        "LICENSE.txt"
     ],
     "scripts": {
         "build": "webpack",

@@ -15,7 +15,6 @@ import {Reporter, ReporterOptions, detectReporter} from './reporter/reporter';
 import nodeReporter from './reporter/node';
 import compatReporter from './reporter/compat';
 import xhrReporter from './reporter/xhr';
-import jsonpReporter from './reporter/jsonp';
 
 import {historian, getHistory} from './airbrake-js/src/instrumentation/historian';
 
@@ -85,9 +84,6 @@ class Client {
             break;
         case 'xhr':
             reporter = xhrReporter;
-            break;
-        case 'jsonp':
-            reporter = jsonpReporter;
             break;
         default:
             reporter = name as Reporter;

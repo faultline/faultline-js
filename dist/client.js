@@ -73,7 +73,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 19);
+/******/ 	return __webpack_require__(__webpack_require__.s = 18);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -301,11 +301,10 @@ var node_1 = __webpack_require__(7);
 var ignore_message_1 = __webpack_require__(6);
 var uncaught_message_1 = __webpack_require__(8);
 var angular_message_1 = __webpack_require__(5);
-var reporter_1 = __webpack_require__(17);
-var node_2 = __webpack_require__(16);
+var reporter_1 = __webpack_require__(16);
+var node_2 = __webpack_require__(15);
 var compat_1 = __webpack_require__(14);
-var xhr_1 = __webpack_require__(18);
-var jsonp_1 = __webpack_require__(15);
+var xhr_1 = __webpack_require__(17);
 var historian_1 = __webpack_require__(11);
 var Client = (function () {
     function Client(opts) {
@@ -355,9 +354,6 @@ var Client = (function () {
                 break;
             case 'xhr':
                 reporter = xhr_1.default;
-                break;
-            case 'jsonp':
-                reporter = jsonp_1.default;
                 break;
             default:
                 reporter = name;
@@ -1499,55 +1495,6 @@ exports.default = report;
 
 Object.defineProperty(exports, "__esModule", { value: true });
 var jsonify_notice_1 = __webpack_require__(0);
-var cbCount = 0;
-function report(notice, opts, promise) {
-    cbCount++;
-    var cbName = 'faultlineCb' + String(cbCount);
-    window[cbName] = function (resp) {
-        try {
-            delete window[cbName];
-        }
-        catch (_) {
-            window[cbName] = undefined;
-        }
-        if (resp.id) {
-            notice.id = resp.id;
-            promise.resolve(notice);
-            return;
-        }
-        if (resp.error) {
-            var err_1 = new Error(resp.error);
-            promise.reject(err_1);
-            return;
-        }
-        var err = new Error(resp);
-        promise.reject(err);
-    };
-    var payload = encodeURIComponent(jsonify_notice_1.default(notice, opts));
-    var url = opts.endpoint + "/projects/" + opts.project + "/errors?api_key={opts.apiKey}&callback=" + cbName + "&body=" + payload; // not support
-    var document = window.document;
-    var head = document.getElementsByTagName('head')[0];
-    var script = document.createElement('script');
-    script.src = url;
-    script.onload = function () { return head.removeChild(script); };
-    script.onerror = function () {
-        head.removeChild(script);
-        var err = new Error('faultline: JSONP script error');
-        promise.reject(err);
-    };
-    head.appendChild(script);
-}
-exports.default = report;
-
-
-/***/ }),
-/* 16 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var jsonify_notice_1 = __webpack_require__(0);
 var request;
 try {
     // Use eval to hide import from Webpack.
@@ -1593,7 +1540,7 @@ exports.default = report;
 
 
 /***/ }),
-/* 17 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1612,7 +1559,7 @@ exports.detectReporter = detectReporter;
 
 
 /***/ }),
-/* 18 */
+/* 17 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -1654,7 +1601,7 @@ exports.default = report;
 
 
 /***/ }),
-/* 19 */
+/* 18 */
 /***/ (function(module, exports, __webpack_require__) {
 
 __webpack_require__(1);
