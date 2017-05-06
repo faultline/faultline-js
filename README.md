@@ -67,7 +67,7 @@ faultline-js automatically setups `window.onerror` handler when script is loaded
 
 ## References
 
-- [airbrake/airbrake-js](https://github.com/airbrake/airbrake-js)
+- faultline-js is based on [airbrake/airbrake-js](https://github.com/airbrake/airbrake-js)
     - Airbrake Js is licensed under [The MIT License (MIT)](https://github.com/airbrake/airbrake-js/LICENSE.md).
 
 ## License
