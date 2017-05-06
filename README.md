@@ -25,13 +25,13 @@ var faultline = new faultlineJs.Client({
                   endpoint: 'https://xxxxxxxxx.execute-api.ap-northeast-1.amazonaws.com/v0',
                   notifications: [
                     {
-                      "type": "slack",
-                      "endpoint": "https://hooks.slack.com/services/XXXXXXXXXX/B2RAD9423/WC2uTs3MyGldZvieAtAA7gQq",
-                      "channel": "#random",
-                      "username": "faultline-notify",
-                      "notifyInterval": 1,
-                      "threshold": 1,
-                      "timezone": "Asia/Tokyo"
+                      type: 'slack',
+                      endpoint: 'https://hooks.slack.com/services/XXXXXXXXXX/B2RAD9423/WC2uTs3MyGldZvieAtAA7gQq',
+                      channel: '#random',
+                      username: 'faultline-notify',
+                      notifyInterval: 1,
+                      threshold: 1,
+                      timezone: 'Asia/Tokyo'
                     }
                   ]
                 });
@@ -47,13 +47,13 @@ var faultline = new faultlineJs({
                   endpoint: 'https://xxxxxxxxx.execute-api.ap-northeast-1.amazonaws.com/v0',
                   notifications: [
                     {
-                      "type": "slack",
-                      "endpoint": "https://hooks.slack.com/services/XXXXXXXXXX/B2RAD9423/WC2uTs3MyGldZvieAtAA7gQq",
-                      "channel": "#random",
-                      "username": "faultline-notify",
-                      "notifyInterval": 1,
-                      "threshold": 1,
-                      "timezone": "Asia/Tokyo"
+                      type: 'slack',
+                      endpoint: 'https://hooks.slack.com/services/XXXXXXXXXX/B2RAD9423/WC2uTs3MyGldZvieAtAA7gQq',
+                      channel: '#random',
+                      username: 'faultline-notify',
+                      notifyInterval: 1,
+                      threshold: 1,
+                      timezone: 'Asia/Tokyo'
                     }
                   ]
                 });
