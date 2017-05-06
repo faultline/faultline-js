@@ -16,7 +16,7 @@ or
 <script src="path/to/faultline-js/dist/client.min.js"></script>
 ```
 
-## Basic Usage
+## Usage
 
 ```js
 var faultline = new faultlineJs.Client({
