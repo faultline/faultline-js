@@ -389,7 +389,7 @@ var Client = (function () {
                 language: 'JavaScript',
                 notifier: {
                     name: 'faultline-js',
-                    version: "0.1.0",
+                    version: "0.1.2",
                     url: 'https://github.com/faultline/faultline-js',
                 },
             }, err.context),
