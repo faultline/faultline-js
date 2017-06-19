@@ -402,9 +402,6 @@ var Client = (function () {
             notice.context.history = history;
         }
         this.processor(err.error, function (_, error) {
-            if (!error.type) {
-                error.type = '_'; // default error.type
-            }
             notice.errors.push(error);
             for (var _i = 0, _a = _this.filters; _i < _a.length; _i++) {
                 var filter = _a[_i];
@@ -413,6 +410,14 @@ var Client = (function () {
                     return;
                 }
                 notice = r;
+            }
+            if (notice.errors) {
+                notice.errors = notice.errors.map(function (err) {
+                    if (!err.type) {
+                        err.type = '_'; // default error.type
+                    }
+                    return err;
+                });
             }
             for (var _b = 0, _c = _this.reporters; _b < _c.length; _b++) {
                 var reporter = _c[_b];
