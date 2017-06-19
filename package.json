@@ -1,6 +1,6 @@
 {
   "name": "faultline-js",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "faultline exception and error notifier for JavaScript.",
   "author": "k1LoW",
   "license": "MIT",

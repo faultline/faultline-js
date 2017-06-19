@@ -149,6 +149,15 @@ class Client {
                 notice = r;
             }
 
+            if (notice.errors) {
+                notice.errors = notice.errors.map((err) => {
+                    if (!err.type) {
+                        err.type = '_'; // default error.type
+                    }
+                    return err;
+                });
+            }
+
             for (let reporter of this.reporters) {
                 reporter(notice, this.opts, promise);
             }

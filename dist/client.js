@@ -389,7 +389,7 @@ var Client = (function () {
                 language: 'JavaScript',
                 notifier: {
                     name: 'faultline-js',
-                    version: "0.1.0",
+                    version: "0.1.2",
                     url: 'https://github.com/faultline/faultline-js',
                 },
             }, err.context),
@@ -410,6 +410,14 @@ var Client = (function () {
                     return;
                 }
                 notice = r;
+            }
+            if (notice.errors) {
+                notice.errors = notice.errors.map(function (err) {
+                    if (!err.type) {
+                        err.type = '_'; // default error.type
+                    }
+                    return err;
+                });
             }
             for (var _b = 0, _c = _this.reporters; _b < _c.length; _b++) {
                 var reporter = _c[_b];
