@@ -402,6 +402,9 @@ var Client = (function () {
             notice.context.history = history;
         }
         this.processor(err.error, function (_, error) {
+            if (!error.type) {
+                error.type = '_'; // default error.type
+            }
             notice.errors.push(error);
             for (var _i = 0, _a = _this.filters; _i < _a.length; _i++) {
                 var filter = _a[_i];
