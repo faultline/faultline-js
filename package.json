@@ -9,7 +9,6 @@
     "url": "git://github.com/faultline/faultline-js.git"
   },
   "devDependencies": {
-    "@types/node": "^8.0.0",
     "chai": "^3.5.0",
     "error-stack-parser": "^2.0.0",
     "imports-loader": "^0.7.1",
