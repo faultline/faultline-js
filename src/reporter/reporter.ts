@@ -9,12 +9,18 @@ export interface ReporterOptions {
     host: string;
     timeout: number;
     notifications: any;
+
+    ignoreWindowError?: boolean;
 }
 
 export type Reporter = (notice: Notice, opts: ReporterOptions, promise: Promise) => void;
 export default Reporter;
 
-export function detectReporter(): string {
+export function detectReporter(_opts): string {
+    if (typeof fetch === 'function') {
+        return 'fetch';
+    }
+
     if (typeof XMLHttpRequest !== 'undefined') {
         return 'xhr';
     }
@@ -22,5 +28,6 @@ export function detectReporter(): string {
     if (typeof window !== 'undefined') {
         return 'jsonp';
     }
+
     return 'node';
 }

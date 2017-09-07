@@ -1,4 +1,5 @@
 import Client = require('../../src/client');
+import * as sinon from 'sinon';
 import { expect } from './sinon_chai';
 
 
@@ -63,28 +64,6 @@ describe('Client', () => {
         });
     });
 
-    it('text error is reported', () => {
-        client.notify('hello');
-
-        expect(reporter).to.have.been.called;
-        let notice = reporter.lastCall.args[0];
-        let err = notice.errors[0];
-        expect(err.message).to.equal('hello');
-        expect(err.backtrace.length).to.equal(15);
-    });
-
-    it('"Script error" message is ignored', () => {
-        client.notify('Script error');
-
-        expect(reporter).not.to.have.been.called;
-    });
-
-    it('"InvalidAccessError" message is ignored', () => {
-        client.notify('InvalidAccessError');
-
-        expect(reporter).not.to.have.been.called;
-    });
-
     context('"Uncaught ..." error message', () => {
         beforeEach(() => {
             let msg = 'Uncaught SecurityError: Blocked a frame with origin "https://airbrake.io" from accessing a cross-origin frame.';
@@ -115,6 +94,27 @@ describe('Client', () => {
         });
     });
 
+    describe('severity', () => {
+        it('defaults to "error"', () => {
+            client.notify(err);
+            let reported = reporter.lastCall.args[0];
+            expect(reported.context.severity).to.equal('error');
+        });
+
+        it('can be overriden', () => {
+            let customSeverity = 'emergency';
+
+            client.addFilter((n) => {
+                n.context.severity = customSeverity;
+                return n;
+            });
+
+            client.notify(err);
+            let reported = reporter.lastCall.args[0];
+            expect(reported.context.severity).to.equal(customSeverity);
+        });
+    });
+
     describe('notify', () => {
         it('returns promise and resolves it', () => {
             let promise = client.notify(err);
@@ -128,19 +128,31 @@ describe('Client', () => {
             expect(reporter).to.have.been.called;
         });
 
-        it('ignores falsey error', () => {
+        it('does not report same error twice', (done) => {
+            for (let i = 0; i < 10; i++) {
+                client.notify(err);
+            }
+            expect(reporter).to.have.been.calledOnce;
+
+            let promise = client.notify(err);
+            promise.catch((err: Error) => {
+                expect(err.toString()).to.equal('Error: faultline-js: error is filtered');
+                done();
+            });
+        });
+
+        it('ignores falsey error', (done) => {
             let promise = client.notify('');
             expect(reporter).not.to.have.been.called;
 
-            let spy = sinon.spy();
-            promise.catch(spy);
-            expect(spy).to.have.been.called;
-
-            let err = spy.lastCall.args[0];
-            expect(err.toString()).to.equal('Error: notify: got err="", wanted an Error');
+            promise.catch((err: Error) => {
+                expect(err.toString()).to.equal(
+                    'Error: faultline-js: got err="", wanted an Error');
+                done();
+            });
         });
 
-        it('reporter is called with valid options', () => {
+        it('calls reporter with valid options', () => {
             client.setProject('faultline-js', '123', 'https://api.example.com/v0');
             client.notify(err);
 
@@ -150,6 +162,56 @@ describe('Client', () => {
             expect(opts.apiKey).to.equal('123');
             expect(opts.endpoint).to.equal('https://api.example.com/v0');
             expect(opts.timeout).to.equal(10000);
+        });
+
+        it('reporter is called with custom host', () => {
+            client.setHost('https://custom.domain.com');
+            client.notify(err);
+
+            let opts = reporter.lastCall.args[1];
+            expect(opts.host).to.equal('https://custom.domain.com');
+        });
+
+        it('reports severity', () => {
+            client.notify({error: err, context: {severity: 'warning'}});
+
+            let notice = reporter.lastCall.args[0];
+            expect(notice.context.severity).to.equal('warning');
+        });
+
+        it('reports userAgent', () => {
+            client.notify(err);
+
+            let notice = reporter.lastCall.args[0];
+            expect(notice.context.userAgent).to.contain('HeadlessChrome');
+        });
+
+        it('reports text error', () => {
+            client.notify('hello');
+
+            expect(reporter).to.have.been.called;
+            let notice = reporter.lastCall.args[0];
+            let err = notice.errors[0];
+            expect(err.message).to.equal('hello');
+            expect(err.backtrace.length).to.not.equal(0);
+        });
+
+        it('ignores "Script error" message', () => {
+            client.notify('Script error');
+
+            expect(reporter).not.to.have.been.called;
+        });
+
+        it('ignores "InvalidAccessError" message', () => {
+            client.notify('InvalidAccessError');
+
+            expect(reporter).not.to.have.been.called;
+        });
+
+        it('ignores errors occurred in <anonymous> file', () => {
+            client.notify({message: 'test', fileName: '<anonymous>'});
+
+            expect(reporter).not.to.have.been.called;
         });
 
         describe('custom data in the filter', () => {
@@ -204,17 +266,16 @@ describe('Client', () => {
                 expect(reporter).to.have.been.called;
             });
 
-            it('ignores falsey error', () => {
+            it('ignores falsey error', (done) => {
                 let promise = client.notify({error: null, params: {foo: 'bar'}});
 
                 expect(reporter).not.to.have.been.called;
 
-                let spy = sinon.spy();
-                promise.catch(spy);
-                expect(spy).to.have.been.called;
-
-                let err = spy.lastCall.args[0];
-                expect(err.toString()).to.equal('Error: notify: got err=null, wanted an Error');
+                promise.catch((err: Error) => {
+                    expect(err.toString()).to.equal(
+                        'Error: faultline-js: got err=null, wanted an Error');
+                    done();
+                });
             });
 
             it('reports custom context', () => {
@@ -352,8 +413,8 @@ describe('Client', () => {
         it('sets __airbrake and __inner properties', () => {
             let fn = sinon.spy();
             let wrapper = client.wrap(fn);
-            expect(wrapper.__airbrake).to.equal(true);
-            expect(wrapper.__inner).to.equal(fn);
+            expect(wrapper._airbrake).to.equal(true);
+            expect(wrapper.inner).to.equal(fn);
         });
 
         it('copies function properties', () => {
@@ -387,8 +448,8 @@ describe('Client', () => {
 
             expect(fn).to.have.been.called;
             let arg1Wrapper = fn.lastCall.args[0];
-            expect(arg1Wrapper.__airbrake).to.equal(true);
-            expect(arg1Wrapper.__inner).to.equal(arg1);
+            expect(arg1Wrapper._airbrake).to.equal(true);
+            expect(arg1Wrapper.inner).to.equal(arg1);
         });
     });
 
@@ -438,6 +499,32 @@ describe('Client', () => {
             it('resolves promise', () => {
                 expect(spy).to.have.been.called;
             });
+        });
+    });
+});
+
+describe('ignoreWindowError', () => {
+    let reporter, client: Client;
+
+    beforeEach(() => {
+        reporter = sinon.spy((_, __, promise) => {
+            promise.resolve({id: 1});
+        });
+        client = new Client({reporter: reporter, ignoreWindowError: true});
+    });
+
+    it('ignores context.windowError', (done) => {
+        let promise = client.notify({
+            error: new Error('test'),
+            context: {
+                windowError: true,
+            },
+        });
+
+        expect(reporter).to.not.have.been.called;
+        promise.catch((err: Error) => {
+            expect(err.toString()).to.equal('Error: faultline-js: window error is ignored');
+            done();
         });
     });
 });

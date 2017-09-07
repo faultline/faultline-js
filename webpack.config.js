@@ -40,7 +40,8 @@ function newConfig() {
       new webpack.optimize.UglifyJsPlugin({
         include: /\.min\.js$/,
         sourceMap: true
-      })
+      }),
+      new webpack.BannerPlugin({banner: 'faultline-js v' + pkg.version}),
     ]
   }
 };
@@ -53,4 +54,19 @@ client.entry = {
 };
 client.output.library = ['faultlineJs', 'Client'];
 
+// var express = newConfig();
+// express.entry = {
+//   'instrumentation/express': './src/airbrake-js/src/instrumentation/express.ts'
+// };
+// express.output.library = ['faultlineJs', 'instrumentation', 'express'];
+
+
+// var hapi = newConfig();
+// hapi.entry = {
+//   'instrumentation/hapi': './src/airbrake-js/src/instrumentation/hapi.ts'
+// };
+// express.output.library = ['faultlineJs', 'instrumentation', 'hapi'];
+
+
 module.exports = [client];
+

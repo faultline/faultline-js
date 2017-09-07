@@ -1,3 +1,4 @@
+/*! faultline-js v0.1.3 */
 (function webpackUniversalModuleDefinition(root, factory) {
 	if(typeof exports === 'object' && typeof module === 'object')
 		module.exports = factory();
@@ -43,9 +44,6 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	// expose the module cache
 /******/ 	__webpack_require__.c = installedModules;
 /******/
-/******/ 	// identity function for calling harmony imports with the correct context
-/******/ 	__webpack_require__.i = function(value) { return value; };
-/******/
 /******/ 	// define getter function for harmony exports
 /******/ 	__webpack_require__.d = function(exports, name, getter) {
 /******/ 		if(!__webpack_require__.o(exports, name)) {
@@ -73,7 +71,7 @@ return /******/ (function(modules) { // webpackBootstrap
 /******/ 	__webpack_require__.p = "";
 /******/
 /******/ 	// Load entry module and return exports
-/******/ 	return __webpack_require__(__webpack_require__.s = 18);
+/******/ 	return __webpack_require__(__webpack_require__.s = 1);
 /******/ })
 /************************************************************************/
 /******/ ([
@@ -117,7 +115,7 @@ function truncateObj(obj, level) {
     }
     return dst;
 }
-var Truncator = (function () {
+var Truncator = /** @class */ (function () {
     function Truncator(level) {
         if (level === void 0) { level = 0; }
         this.maxStringLength = 1024;
@@ -126,20 +124,10 @@ var Truncator = (function () {
         this.maxDepth = 8;
         this.keys = [];
         this.seen = [];
-        for (var i = 0; i < level; i++) {
-            if (this.maxStringLength > 1) {
-                this.maxStringLength /= 2;
-            }
-            if (this.maxObjectLength > 1) {
-                this.maxObjectLength /= 2;
-            }
-            if (this.maxArrayLength > 1) {
-                this.maxArrayLength /= 2;
-            }
-            if (this.maxDepth > 1) {
-                this.maxDepth /= 2;
-            }
-        }
+        this.maxStringLength = (this.maxStringLength >> level) || 1;
+        this.maxObjectLength = (this.maxObjectLength >> level) || 1;
+        this.maxArrayLength = (this.maxArrayLength >> level) || 1;
+        this.maxDepth = (this.maxDepth >> level) || 1;
     }
     Truncator.prototype.truncate = function (value, key, depth) {
         if (key === void 0) { key = ''; }
@@ -266,6 +254,14 @@ function objectType(obj) {
 
 /***/ }),
 /* 1 */
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__(2);
+module.exports = __webpack_require__(3);
+
+
+/***/ }),
+/* 2 */
 /***/ (function(module, exports) {
 
 if (!Object.assign) {
@@ -289,24 +285,26 @@ if (!Object.assign) {
 
 
 /***/ }),
-/* 2 */
+/* 3 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
-var promise_1 = __webpack_require__(13);
-var stacktracejs_1 = __webpack_require__(12);
-var window_1 = __webpack_require__(9);
-var node_1 = __webpack_require__(7);
-var ignore_message_1 = __webpack_require__(6);
-var uncaught_message_1 = __webpack_require__(8);
-var angular_message_1 = __webpack_require__(5);
-var reporter_1 = __webpack_require__(16);
-var node_2 = __webpack_require__(15);
-var compat_1 = __webpack_require__(14);
+var promise_1 = __webpack_require__(4);
+var stacktracejs_1 = __webpack_require__(5);
+var ignore_1 = __webpack_require__(8);
+var debounce_1 = __webpack_require__(9);
+var uncaught_message_1 = __webpack_require__(10);
+var angular_message_1 = __webpack_require__(11);
+var window_1 = __webpack_require__(12);
+var node_1 = __webpack_require__(13);
+var reporter_1 = __webpack_require__(14);
+var fetch_1 = __webpack_require__(15);
+var node_2 = __webpack_require__(16);
 var xhr_1 = __webpack_require__(17);
-var historian_1 = __webpack_require__(11);
-var Client = (function () {
+var jsonp_1 = __webpack_require__(18);
+var historian_1 = __webpack_require__(19);
+var Client = /** @class */ (function () {
     function Client(opts) {
         if (opts === void 0) { opts = {}; }
         var _this = this;
@@ -315,20 +313,21 @@ var Client = (function () {
         this.filters = [];
         this.offline = false;
         this.errors = [];
-        this.opts.project = opts.project;
-        this.opts.apiKey = opts.apiKey;
-        this.opts.endpoint = opts.endpoint;
-        this.opts.timeout = opts.timeout || 10000;
-        this.opts.notifications = opts.notifications;
+        this.opts = opts;
+        this.opts.host = this.opts.host || 'https://api.airbrake.io';
+        this.opts.timeout = this.opts.timeout || 10000;
         this.processor = opts.processor || stacktracejs_1.default;
-        this.addReporter(opts.reporter || reporter_1.detectReporter());
-        this.addFilter(ignore_message_1.default);
+        this.addReporter(opts.reporter || reporter_1.detectReporter(opts));
+        this.addFilter(ignore_1.default);
+        this.addFilter(debounce_1.default());
         this.addFilter(uncaught_message_1.default);
         this.addFilter(angular_message_1.default);
         if (typeof window === 'object') {
             this.addFilter(window_1.default);
-            window.addEventListener('online', this.onOnline.bind(this));
-            window.addEventListener('offline', function () { return _this.offline = true; });
+            if (typeof window.addEventListener === 'function') {
+                window.addEventListener('online', this.onOnline.bind(this));
+                window.addEventListener('offline', function () { return _this.offline = true; });
+            }
         }
         else {
             this.addFilter(node_1.default);
@@ -346,14 +345,17 @@ var Client = (function () {
     Client.prototype.addReporter = function (name) {
         var reporter;
         switch (name) {
+            case 'fetch':
+                reporter = fetch_1.default;
+                break;
             case 'node':
                 reporter = node_2.default;
                 break;
-            case 'compat':
-                reporter = compat_1.default;
-                break;
             case 'xhr':
                 reporter = xhr_1.default;
+                break;
+            case 'jsonp':
+                reporter = jsonp_1.default;
                 break;
             default:
                 reporter = name;
@@ -370,7 +372,12 @@ var Client = (function () {
         }
         var promise = err.promise || new promise_1.default();
         if (!err.error) {
-            var reason = new Error("notify: got err=" + JSON.stringify(err.error) + ", wanted an Error");
+            var reason = new Error("faultline-js: got err=" + JSON.stringify(err.error) + ", wanted an Error");
+            promise.reject(reason);
+            return promise;
+        }
+        if (this.opts.ignoreWindowError && err.context && err.context.windowError) {
+            var reason = new Error('faultline-js: window error is ignored');
             promise.reject(reason);
             return promise;
         }
@@ -387,9 +394,10 @@ var Client = (function () {
             errors: [],
             context: Object.assign({
                 language: 'JavaScript',
+                severity: 'error',
                 notifier: {
                     name: 'faultline-js',
-                    version: "0.1.2",
+                    version: "0.1.3",
                     url: 'https://github.com/faultline/faultline-js',
                 },
             }, err.context),
@@ -407,10 +415,12 @@ var Client = (function () {
                 var filter = _a[_i];
                 var r = filter(notice);
                 if (r === null) {
+                    promise.reject(new Error('faultline-js: error is filtered'));
                     return;
                 }
                 notice = r;
             }
+            // mod
             if (notice.errors) {
                 notice.errors = notice.errors.map(function (err) {
                     if (!err.type) {
@@ -448,8 +458,8 @@ var Client = (function () {
                 airbrakeWrapper[prop] = fn[prop];
             }
         }
-        airbrakeWrapper.__airbrake = true;
-        airbrakeWrapper.__inner = fn;
+        airbrakeWrapper._airbrake = true;
+        airbrakeWrapper.inner = fn;
         return airbrakeWrapper;
     };
     Client.prototype.wrapArguments = function (args) {
@@ -486,7 +496,147 @@ module.exports = Client;
 
 
 /***/ }),
-/* 3 */
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var Promise = /** @class */ (function () {
+    function Promise(executor) {
+        this.onResolved = [];
+        this.onRejected = [];
+        if (executor) {
+            executor(this.resolve.bind(this), this.reject.bind(this));
+        }
+    }
+    Promise.prototype.then = function (onResolved, onRejected) {
+        if (onResolved) {
+            if (this.resolvedWith) {
+                onResolved(this.resolvedWith);
+            }
+            else {
+                this.onResolved.push(onResolved);
+            }
+        }
+        if (onRejected) {
+            if (this.rejectedWith) {
+                onRejected(this.rejectedWith);
+            }
+            else {
+                this.onRejected.push(onRejected);
+            }
+        }
+        return this;
+    };
+    Promise.prototype.catch = function (onRejected) {
+        if (this.rejectedWith) {
+            onRejected(this.rejectedWith);
+        }
+        else {
+            this.onRejected.push(onRejected);
+        }
+        return this;
+    };
+    Promise.prototype.resolve = function (value) {
+        if (this.resolvedWith || this.rejectedWith) {
+            throw new Error('Promise is already resolved or rejected');
+        }
+        this.resolvedWith = value;
+        for (var _i = 0, _a = this.onResolved; _i < _a.length; _i++) {
+            var fn = _a[_i];
+            fn(value);
+        }
+        return this;
+    };
+    Promise.prototype.reject = function (reason) {
+        if (this.resolvedWith || this.rejectedWith) {
+            throw new Error('Promise is already resolved or rejected');
+        }
+        this.rejectedWith = reason;
+        for (var _i = 0, _a = this.onRejected; _i < _a.length; _i++) {
+            var fn = _a[_i];
+            fn(reason);
+        }
+        return this;
+    };
+    return Promise;
+}());
+exports.default = Promise;
+
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var ErrorStackParser = __webpack_require__(6);
+var hasConsole = typeof console === 'object' && console.warn;
+function parse(err) {
+    try {
+        return ErrorStackParser.parse(err);
+    }
+    catch (parseErr) {
+        if (hasConsole && err.stack) {
+            console.warn('ErrorStackParser:', parseErr.toString(), err.stack);
+        }
+    }
+    if (err.fileName) {
+        return [err];
+    }
+    return [];
+}
+function processor(err, cb) {
+    var backtrace = [];
+    if (!err.noStack) {
+        var frames_1 = parse(err);
+        if (frames_1.length === 0) {
+            try {
+                throw new Error('fake');
+            }
+            catch (fakeErr) {
+                frames_1 = parse(fakeErr);
+                frames_1.shift();
+                frames_1.shift();
+            }
+        }
+        for (var _i = 0, frames_2 = frames_1; _i < frames_2.length; _i++) {
+            var frame = frames_2[_i];
+            backtrace.push({
+                function: frame.functionName || '',
+                file: frame.fileName || '<anonymous>',
+                line: frame.lineNumber || 0,
+                column: frame.columnNumber || 0,
+            });
+        }
+    }
+    var type;
+    if (err.name) {
+        type = err.name;
+    }
+    else {
+        type = '';
+    }
+    var msg;
+    if (err.message) {
+        msg = String(err.message);
+    }
+    else {
+        msg = String(err);
+    }
+    cb('stacktracejs', {
+        type: type,
+        message: msg,
+        backtrace: backtrace,
+    });
+}
+exports.default = processor;
+
+
+/***/ }),
+/* 6 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*** IMPORTS FROM imports-loader ***/
@@ -500,7 +650,7 @@ var define = false;
     if (typeof define === 'function' && define.amd) {
         define('error-stack-parser', ['stackframe'], factory);
     } else if (true) {
-        module.exports = factory(__webpack_require__(4));
+        module.exports = factory(__webpack_require__(7));
     } else {
         root.ErrorStackParser = factory(root.StackFrame);
     }
@@ -687,7 +837,7 @@ var define = false;
 
 
 /***/ }),
-/* 4 */
+/* 7 */
 /***/ (function(module, exports, __webpack_require__) {
 
 /*** IMPORTS FROM imports-loader ***/
@@ -808,7 +958,93 @@ var define = false;
 
 
 /***/ }),
-/* 5 */
+/* 8 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var IGNORED_MESSAGES = [
+    'Script error',
+    'Script error.',
+    'InvalidAccessError',
+];
+function filter(notice) {
+    var err = notice.errors[0];
+    if (err.type === '' && IGNORED_MESSAGES.indexOf(err.message) !== -1) {
+        return null;
+    }
+    if (err.backtrace) {
+        var frame = err.backtrace[0];
+        if (frame.file === '<anonymous>') {
+            return null;
+        }
+    }
+    return notice;
+}
+exports.default = filter;
+
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+function makeFilter() {
+    var lastNoticeJSON;
+    var timeout;
+    return function (notice) {
+        var s = JSON.stringify(notice.errors);
+        if (s === lastNoticeJSON) {
+            return null;
+        }
+        if (timeout) {
+            clearTimeout(timeout);
+        }
+        lastNoticeJSON = s;
+        timeout = setTimeout(function () {
+            lastNoticeJSON = '';
+        }, 1000);
+        return notice;
+    };
+}
+exports.default = makeFilter;
+
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var re = new RegExp([
+    '^',
+    'Uncaught\\s',
+    '(.+?)',
+    ':\\s',
+    '(.+)',
+    '$',
+].join(''));
+function filter(notice) {
+    var err = notice.errors[0];
+    if (err.type !== '' && err.type !== 'Error') {
+        return notice;
+    }
+    var m = err.message.match(re);
+    if (m !== null) {
+        err.type = m[1];
+        err.message = m[2];
+    }
+    return notice;
+}
+exports.default = filter;
+
+
+/***/ }),
+/* 11 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -837,24 +1073,20 @@ exports.default = filter;
 
 
 /***/ }),
-/* 6 */
+/* 12 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var IGNORED_MESSAGES = [
-    'Script error',
-    'Script error.',
-    'InvalidAccessError',
-];
 function filter(notice) {
-    var err = notice.errors[0];
-    if (err.type !== '') {
-        return notice;
+    if (window.navigator && window.navigator.userAgent) {
+        notice.context.userAgent = window.navigator.userAgent;
     }
-    if (IGNORED_MESSAGES.indexOf(err.message) > -1) {
-        return null;
+    if (window.location) {
+        notice.context.url = String(window.location);
+        // Set root directory to group errors on different subdomains together.
+        notice.context.rootDirectory = window.location.protocol + '//' + window.location.host;
     }
     return notice;
 }
@@ -862,7 +1094,7 @@ exports.default = filter;
 
 
 /***/ }),
-/* 7 */
+/* 13 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
@@ -914,144 +1146,245 @@ exports.default = filter;
 
 
 /***/ }),
-/* 8 */
+/* 14 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var re = new RegExp([
-    '^',
-    'Uncaught\\s',
-    '(.+?)',
-    ':\\s',
-    '(.+)',
-    '$',
-].join(''));
-function filter(notice) {
-    var err = notice.errors[0];
-    if (err.type !== '' && err.type !== 'Error') {
-        return notice;
+function detectReporter(_opts) {
+    if (typeof fetch === 'function') {
+        return 'fetch';
     }
-    var m = err.message.match(re);
-    if (m !== null) {
-        err.type = m[1];
-        err.message = m[2];
+    if (typeof XMLHttpRequest !== 'undefined') {
+        return 'xhr';
     }
-    return notice;
+    if (typeof window !== 'undefined') {
+        return 'jsonp';
+    }
+    return 'node';
 }
-exports.default = filter;
+exports.detectReporter = detectReporter;
 
 
 /***/ }),
-/* 9 */
+/* 15 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-function filter(notice) {
-    if (window.navigator && window.navigator.userAgent) {
-        notice.context.userAgent = window.navigator.userAgent;
+var jsonify_notice_1 = __webpack_require__(0);
+var rateLimitReset = 0;
+var errIpRateLimited = new Error('faultline: ip is rate limited');
+function report(notice, opts, promise) {
+    var utime = Date.now() / 1000;
+    if (utime < rateLimitReset) {
+        promise.reject(errIpRateLimited);
+        return;
     }
-    if (window.location) {
-        notice.context.url = String(window.location);
-        // Set root directory to group errors on different subdomains together.
-        notice.context.rootDirectory = window.location.protocol + '//' + window.location.host;
-    }
-    return notice;
+    var url = opts.endpoint + "/projects/" + opts.project + "/errors";
+    var payload = jsonify_notice_1.default(notice, opts);
+    var opt = {
+        method: 'POST',
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'x-api-key': opts.apiKey
+        },
+        body: payload,
+    };
+    fetch(url, opt).then(function (req) {
+        if (req.status === 429) {
+            promise.reject(errIpRateLimited);
+            var s = req.headers.get('X-RateLimit-Reset');
+            if (!s) {
+                return;
+            }
+            var n = parseInt(s, 10);
+            if (n > 0) {
+                rateLimitReset = n;
+            }
+            return;
+        }
+        if (req.status >= 200 && req.status < 500) {
+            req.json().then(function (resp) {
+                if (resp.id) {
+                    notice.id = resp.id;
+                    promise.resolve(notice);
+                    return;
+                }
+                if (resp.error) {
+                    var err = new Error(resp.error);
+                    promise.reject(err);
+                    return;
+                }
+            });
+            return;
+        }
+        req.text().then(function (body) {
+            var err = new Error("faultline: fetch: unexpected response: code=" + req.status + " body='" + body + "'");
+            promise.reject(err);
+        });
+    }).catch(function (err) {
+        promise.reject(err);
+    });
 }
-exports.default = filter;
+exports.default = report;
 
 
 /***/ }),
-/* 10 */
+/* 16 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var elemAttrs = ['type', 'name', 'src'];
-function elemName(elem) {
-    if (!elem) {
-        return '';
-    }
-    var s = [];
-    if (elem.tagName) {
-        s.push(elem.tagName.toLowerCase());
-    }
-    if (elem.id) {
-        s.push('#');
-        s.push(elem.id);
-    }
-    if (elem.className) {
-        s.push('.');
-        s.push(elem.className.split(' ').join('.'));
-    }
-    if (elem.getAttribute) {
-        for (var _i = 0, elemAttrs_1 = elemAttrs; _i < elemAttrs_1.length; _i++) {
-            var attr = elemAttrs_1[_i];
-            var value = elem.getAttribute(attr);
-            if (value) {
-                s.push("[" + attr + "=\"" + value + "\"]");
+var jsonify_notice_1 = __webpack_require__(0);
+var request;
+try {
+    // Use eval to hide import from Webpack.
+    request = eval('require')('request');
+}
+catch (_) { }
+function report(notice, opts, promise) {
+    var url = opts.endpoint + "/projects/" + opts.project + "/errors";
+    var payload = jsonify_notice_1.default(notice, opts);
+    request({
+        url: url,
+        method: 'POST',
+        body: payload,
+        headers: {
+            'content-type': 'application/json',
+            'x-api-key': opts.apiKey
+        },
+        timeout: opts.timeout,
+    }, function (error, response, body) {
+        if (error) {
+            promise.reject(error);
+            return;
+        }
+        if (response.statusCode >= 200 && response.statusCode < 500) {
+            var resp = JSON.parse(body);
+            if (resp.id) {
+                notice.id = resp.id;
+                promise.resolve(notice);
+                return;
+            }
+            if (resp.error) {
+                var err_1 = new Error(resp.error);
+                promise.reject(err_1);
+                return;
             }
         }
-    }
-    return s.join('');
+        body = body.trim();
+        var err = new Error("faultline: unexpected response: code=" + response.statusCode + " body='" + body + "'");
+        promise.reject(err);
+    });
 }
-function elemPath(elem) {
-    var maxLen = 10;
-    var path = [];
-    var parent = elem;
-    while (parent) {
-        var name_1 = elemName(parent);
-        if (name_1 !== '') {
-            path.push(name_1);
-            if (path.length > maxLen) {
-                break;
+exports.default = report;
+
+
+/***/ }),
+/* 17 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var jsonify_notice_1 = __webpack_require__(0);
+function report(notice, opts, promise) {
+    var url = opts.endpoint + "/projects/" + opts.project + "/errors";
+    var payload = jsonify_notice_1.default(notice, opts);
+    var req = new XMLHttpRequest();
+    req.open('POST', url, true);
+    req.timeout = opts.timeout;
+    req.setRequestHeader('Content-Type', 'application/json');
+    req.setRequestHeader('X-Api-Key', opts.apiKey);
+    req.onreadystatechange = function () {
+        if (req.readyState !== 4) {
+            return;
+        }
+        if (req.status >= 200 && req.status < 500) {
+            var resp = JSON.parse(req.responseText);
+            if (resp.id) {
+                notice.id = resp.id;
+                promise.resolve(notice);
+                return;
+            }
+            if (resp.error) {
+                var err_1 = new Error(resp.error);
+                promise.reject(err_1);
+                return;
             }
         }
-        parent = parent.parentNode;
-    }
-    if (path.length === 0) {
-        return String(elem);
-    }
-    return path.reverse().join(' > ');
+        var body = req.responseText.trim();
+        var err = new Error("faultline: unexpected response: code=" + req.status + " body='" + body + "'");
+        promise.reject(err);
+    };
+    req.send(payload);
 }
-function makeEventHandler(client) {
-    return function (event) {
-        var target;
+exports.default = report;
+
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports, __webpack_require__) {
+
+"use strict";
+
+Object.defineProperty(exports, "__esModule", { value: true });
+var jsonify_notice_1 = __webpack_require__(0);
+var cbCount = 0;
+function report(notice, opts, promise) {
+    cbCount++;
+    var cbName = 'faultlineCb' + String(cbCount);
+    window[cbName] = function (resp) {
         try {
-            target = event.target;
+            delete window[cbName];
         }
         catch (_) {
+            window[cbName] = undefined;
+        }
+        if (resp.id) {
+            notice.id = resp.id;
+            promise.resolve(notice);
             return;
         }
-        if (!target) {
+        if (resp.error) {
+            var err_1 = new Error(resp.error);
+            promise.reject(err_1);
             return;
         }
-        var state = { type: event.type };
-        try {
-            state.target = elemPath(target);
-        }
-        catch (err) {
-            state.target = "<" + err.toString() + ">";
-        }
-        client.pushHistory(state);
+        var err = new Error(resp);
+        promise.reject(err);
     };
+    var payload = encodeURIComponent(jsonify_notice_1.default(notice, opts));
+    var url = opts.endpoint + "/projects/" + opts.project + "/errors?api_key={opts.apiKey}&callback=" + cbName + "&body=" + payload; // not support
+    var document = window.document;
+    var head = document.getElementsByTagName('head')[0];
+    var script = document.createElement('script');
+    script.src = url;
+    script.onload = function () { return head.removeChild(script); };
+    script.onerror = function () {
+        head.removeChild(script);
+        var err = new Error('faultline: JSONP script error');
+        promise.reject(err);
+    };
+    head.appendChild(script);
 }
-exports.makeEventHandler = makeEventHandler;
+exports.default = report;
 
 
 /***/ }),
-/* 11 */
+/* 19 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var dom_1 = __webpack_require__(10);
-var Historian = (function () {
+var dom_1 = __webpack_require__(20);
+var Historian = /** @class */ (function () {
     function Historian() {
         var _this = this;
         this.historyMaxLen = 20;
@@ -1059,6 +1392,7 @@ var Historian = (function () {
         this.errors = [];
         this.ignoreWindowError = 0;
         this.history = [];
+        this.ignoreNextXHR = 0;
         if (typeof window === 'object') {
             var self_1 = this;
             var oldHandler_1 = window.onerror;
@@ -1086,6 +1420,9 @@ var Historian = (function () {
         }
         if (typeof console === 'object') {
             this.console();
+        }
+        if (typeof fetch === 'function') {
+            this.fetch();
         }
         if (typeof XMLHttpRequest !== 'undefined') {
             this.xhr();
@@ -1218,6 +1555,7 @@ var Historian = (function () {
                     arguments: Array.prototype.slice.call(arguments),
                 });
             };
+            newFn.inner = oldFn;
             console[m] = newFn;
         };
         for (var _i = 0, methods_1 = methods; _i < methods_1.length; _i++) {
@@ -1225,38 +1563,72 @@ var Historian = (function () {
             _loop_1(m);
         }
     };
+    Historian.prototype.fetch = function () {
+        var client = this;
+        var oldFetch = fetch;
+        window.fetch = function (input, init) {
+            var state = {
+                type: 'xhr',
+                date: new Date(),
+            };
+            if (typeof input === 'string') {
+                state.url = input;
+            }
+            else {
+                state.url = input.url;
+            }
+            if (init && init.method) {
+                state.method = init.method;
+            }
+            else {
+                state.method = 'GET';
+            }
+            // Some platforms (e.g. react-native) implement fetch via XHR.
+            client.ignoreNextXHR++;
+            setTimeout(function () { return client.ignoreNextXHR--; });
+            var promise = oldFetch.apply(this, arguments);
+            promise.then(function (req) {
+                state.statusCode = req.status;
+                state.duration = new Date().getTime() - state.date.getTime();
+                client.pushHistory(state);
+            });
+            return promise;
+        };
+    };
     Historian.prototype.xhr = function () {
         var client = this;
         var oldOpen = XMLHttpRequest.prototype.open;
         XMLHttpRequest.prototype.open = function (method, url, _async, _user, _password) {
-            this.__state = {
-                type: 'xhr',
-                method: method,
-                url: url,
-            };
+            if (client.ignoreNextXHR === 0) {
+                this.__state = {
+                    type: 'xhr',
+                    method: method,
+                    url: url,
+                };
+            }
             oldOpen.apply(this, arguments);
         };
         var oldSend = XMLHttpRequest.prototype.send;
         XMLHttpRequest.prototype.send = function (_data) {
             var oldFn = this.onreadystatechange;
             this.onreadystatechange = function (_ev) {
-                if (this.__state && this.readyState === 4) {
+                if (this.readyState === 4 && this.__state) {
                     client.recordReq(this);
                 }
                 if (oldFn) {
                     return oldFn.apply(this, arguments);
                 }
             };
-            this.__state.date = new Date();
+            if (this.__state) {
+                this.__state.date = new Date();
+            }
             return oldSend.apply(this, arguments);
         };
     };
     Historian.prototype.recordReq = function (req) {
         var state = req.__state;
         state.statusCode = req.status;
-        if (state.date) {
-            state.duration = new Date().getTime() - state.date.getTime();
-        }
+        state.duration = new Date().getTime() - state.date.getTime();
         this.pushHistory(state);
     };
     Historian.prototype.location = function () {
@@ -1310,310 +1682,82 @@ exports.getHistory = getHistory;
 
 
 /***/ }),
-/* 12 */
+/* 20 */
 /***/ (function(module, exports, __webpack_require__) {
 
 "use strict";
 
 Object.defineProperty(exports, "__esModule", { value: true });
-var ErrorStackParser = __webpack_require__(3);
-var hasConsole = typeof console === 'object' && console.warn;
-function parse(err) {
-    try {
-        return ErrorStackParser.parse(err);
+var elemAttrs = ['type', 'name', 'src'];
+function elemName(elem) {
+    if (!elem) {
+        return '';
     }
-    catch (parseErr) {
-        if (hasConsole && err.stack) {
-            console.warn('ErrorStackParser:', parseErr.toString(), err.stack);
+    var s = [];
+    if (elem.tagName) {
+        s.push(elem.tagName.toLowerCase());
+    }
+    if (elem.id) {
+        s.push('#');
+        s.push(elem.id);
+    }
+    if (elem.className) {
+        s.push('.');
+        s.push(elem.className.split(' ').join('.'));
+    }
+    if (elem.getAttribute) {
+        for (var _i = 0, elemAttrs_1 = elemAttrs; _i < elemAttrs_1.length; _i++) {
+            var attr = elemAttrs_1[_i];
+            var value = elem.getAttribute(attr);
+            if (value) {
+                s.push("[" + attr + "=\"" + value + "\"]");
+            }
         }
-        return [];
     }
+    return s.join('');
 }
-function processor(err, cb) {
-    var backtrace = [];
-    if (!err.noStack) {
-        var frames_1 = parse(err);
-        if (frames_1.length === 0) {
-            try {
-                throw new Error('fake');
-            }
-            catch (fakeErr) {
-                frames_1 = parse(fakeErr);
-                frames_1.shift();
-                frames_1.shift();
+function elemPath(elem) {
+    var maxLen = 10;
+    var path = [];
+    var parent = elem;
+    while (parent) {
+        var name_1 = elemName(parent);
+        if (name_1 !== '') {
+            path.push(name_1);
+            if (path.length > maxLen) {
+                break;
             }
         }
-        for (var _i = 0, frames_2 = frames_1; _i < frames_2.length; _i++) {
-            var frame = frames_2[_i];
-            backtrace.push({
-                function: frame.functionName || '',
-                file: frame.fileName || '<anonymous>',
-                line: frame.lineNumber || 0,
-                column: frame.columnNumber || 0,
-            });
-        }
+        parent = parent.parentNode;
     }
-    if (backtrace.length === 0 && err.fileName && err.lineNumber) {
-        backtrace.push({
-            function: err.functionName || '',
-            file: err.fileName || '<anonymous>',
-            line: err.lineNumber || 0,
-            column: err.columnNumber || 0,
-        });
+    if (path.length === 0) {
+        return String(elem);
     }
-    var type;
-    if (err.name) {
-        type = err.name;
-    }
-    else {
-        type = '';
-    }
-    var msg;
-    if (err.message) {
-        msg = String(err.message);
-    }
-    else {
-        msg = String(err);
-    }
-    cb('stacktracejs', {
-        type: type,
-        message: msg,
-        backtrace: backtrace,
-    });
+    return path.reverse().join(' > ');
 }
-exports.default = processor;
-
-
-/***/ }),
-/* 13 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var Promise = (function () {
-    function Promise(executor) {
-        this.onResolved = [];
-        this.onRejected = [];
-        if (executor) {
-            executor(this.resolve.bind(this), this.reject.bind(this));
+function makeEventHandler(client) {
+    return function (event) {
+        var target;
+        try {
+            target = event.target;
         }
-    }
-    Promise.prototype.then = function (onResolved, onRejected) {
-        if (onResolved) {
-            if (this.resolvedWith) {
-                onResolved(this.resolvedWith);
-            }
-            else {
-                this.onResolved.push(onResolved);
-            }
-        }
-        if (onRejected) {
-            if (this.rejectedWith) {
-                onRejected(this.rejectedWith);
-            }
-            else {
-                this.onRejected.push(onRejected);
-            }
-        }
-        return this;
-    };
-    Promise.prototype.catch = function (onRejected) {
-        if (this.rejectedWith) {
-            onRejected(this.rejectedWith);
-        }
-        else {
-            this.onRejected.push(onRejected);
-        }
-        return this;
-    };
-    Promise.prototype.resolve = function (value) {
-        if (this.resolvedWith || this.rejectedWith) {
-            throw new Error('Promise is already resolved or rejected');
-        }
-        this.resolvedWith = value;
-        for (var _i = 0, _a = this.onResolved; _i < _a.length; _i++) {
-            var fn = _a[_i];
-            fn(value);
-        }
-        return this;
-    };
-    Promise.prototype.reject = function (reason) {
-        if (this.resolvedWith || this.rejectedWith) {
-            throw new Error('Promise is already resolved or rejected');
-        }
-        this.rejectedWith = reason;
-        for (var _i = 0, _a = this.onRejected; _i < _a.length; _i++) {
-            var fn = _a[_i];
-            fn(reason);
-        }
-        return this;
-    };
-    return Promise;
-}());
-exports.default = Promise;
-
-
-/***/ }),
-/* 14 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var jsonify_notice_1 = __webpack_require__(0);
-function report(notice, opts, promise) {
-    var url = opts.endpoint + "/projects/" + opts.project + "/errors";
-    var payload = jsonify_notice_1.default(notice, opts);
-    var req = new XMLHttpRequest();
-    req.open('POST', url, true);
-    req.timeout = opts.timeout;
-    req.setRequestHeader('X-Api-Key', opts.apiKey);
-    req.onreadystatechange = function () {
-        if (req.readyState !== 4) {
+        catch (_) {
             return;
         }
-        if (req.status >= 200 && req.status < 500) {
-            var resp = JSON.parse(req.responseText);
-            if (resp.id) {
-                notice.id = resp.id;
-                promise.resolve(notice);
-                return;
-            }
-            if (resp.error) {
-                var err_1 = new Error(resp.error);
-                promise.reject(err_1);
-                return;
-            }
-        }
-        var body = req.responseText.trim();
-        var err = new Error("faultline: unexpected response: code=" + req.status + " body='" + body + "'");
-        promise.reject(err);
-    };
-    req.send(payload);
-}
-exports.default = report;
-
-
-/***/ }),
-/* 15 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var jsonify_notice_1 = __webpack_require__(0);
-var request;
-try {
-    // Use eval to hide import from Webpack.
-    request = eval('require')('request');
-}
-catch (_) { }
-function report(notice, opts, promise) {
-    var url = opts.endpoint + "/projects/" + opts.project + "/errors";
-    var payload = jsonify_notice_1.default(notice, opts);
-    request({
-        url: url,
-        method: 'POST',
-        body: payload,
-        headers: {
-            'content-type': 'application/json',
-            'x-api-key': opts.apiKey
-        },
-        timeout: opts.timeout,
-    }, function (error, response, body) {
-        if (error) {
-            promise.reject(error);
+        if (!target) {
             return;
         }
-        if (response.statusCode >= 200 && response.statusCode < 500) {
-            var resp = JSON.parse(body);
-            if (resp.id) {
-                notice.id = resp.id;
-                promise.resolve(notice);
-                return;
-            }
-            if (resp.error) {
-                var err_1 = new Error(resp.error);
-                promise.reject(err_1);
-                return;
-            }
+        var state = { type: event.type };
+        try {
+            state.target = elemPath(target);
         }
-        body = body.trim();
-        var err = new Error("faultline: unexpected response: code=" + response.statusCode + " body='" + body + "'");
-        promise.reject(err);
-    });
-}
-exports.default = report;
-
-
-/***/ }),
-/* 16 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-function detectReporter() {
-    if (typeof XMLHttpRequest !== 'undefined') {
-        return 'xhr';
-    }
-    if (typeof window !== 'undefined') {
-        return 'jsonp';
-    }
-    return 'node';
-}
-exports.detectReporter = detectReporter;
-
-
-/***/ }),
-/* 17 */
-/***/ (function(module, exports, __webpack_require__) {
-
-"use strict";
-
-Object.defineProperty(exports, "__esModule", { value: true });
-var jsonify_notice_1 = __webpack_require__(0);
-function report(notice, opts, promise) {
-    var url = opts.endpoint + "/projects/" + opts.project + "/errors";
-    var payload = jsonify_notice_1.default(notice, opts);
-    var req = new XMLHttpRequest();
-    req.open('POST', url, true);
-    req.timeout = opts.timeout;
-    req.setRequestHeader('Content-Type', 'application/json');
-    req.setRequestHeader('X-Api-Key', opts.apiKey);
-    req.onreadystatechange = function () {
-        if (req.readyState !== 4) {
-            return;
+        catch (err) {
+            state.target = "<" + err.toString() + ">";
         }
-        if (req.status >= 200 && req.status < 500) {
-            var resp = JSON.parse(req.responseText);
-            if (resp.id) {
-                notice.id = resp.id;
-                promise.resolve(notice);
-                return;
-            }
-            if (resp.error) {
-                var err_1 = new Error(resp.error);
-                promise.reject(err_1);
-                return;
-            }
-        }
-        var body = req.responseText.trim();
-        var err = new Error("faultline: unexpected response: code=" + req.status + " body='" + body + "'");
-        promise.reject(err);
+        client.pushHistory(state);
     };
-    req.send(payload);
 }
-exports.default = report;
-
-
-/***/ }),
-/* 18 */
-/***/ (function(module, exports, __webpack_require__) {
-
-__webpack_require__(1);
-module.exports = __webpack_require__(2);
+exports.makeEventHandler = makeEventHandler;
 
 
 /***/ })
