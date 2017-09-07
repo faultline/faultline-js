@@ -1,31 +1,28 @@
 import Promise from './airbrake-js/src/promise';
 import {Notice, AirbrakeError} from './airbrake-js/src/notice';
+import FuncWrapper from './airbrake-js/src/func_wrapper';
 
 import Processor from './airbrake-js/src/processor/processor';
 import stacktracejsProcessor from './airbrake-js/src/processor/stacktracejs';
 
 import Filter from './airbrake-js/src/filter/filter';
-import windowFilter from './airbrake-js/src/filter/window';
-import nodeFilter from './airbrake-js/src/filter/node';
-import ignoreMessageFilter from './airbrake-js/src/filter/ignore_message';
+import ignoreFilter from './airbrake-js/src/filter/ignore';
+import makeDebounceFilter from './airbrake-js/src/filter/debounce';
 import uncaughtMessageFilter from './airbrake-js/src/filter/uncaught_message';
 import angularMessageFilter from './airbrake-js/src/filter/angular_message';
+import windowFilter from './airbrake-js/src/filter/window';
+import nodeFilter from './airbrake-js/src/filter/node';
 
 import {Reporter, ReporterOptions, detectReporter} from './reporter/reporter';
+import fetchReporter from './reporter/fetch';
 import nodeReporter from './reporter/node';
-import compatReporter from './reporter/compat';
 import xhrReporter from './reporter/xhr';
+import jsonpReporter from './reporter/jsonp';
 
 import {historian, getHistory} from './airbrake-js/src/instrumentation/historian';
 
 
 declare const VERSION: string;
-
-interface FunctionWrapper {
-    (): any;
-    __airbrake: boolean;
-    __inner: () => any;
-}
 
 class Client {
     private opts: ReporterOptions = {} as ReporterOptions;
@@ -38,24 +35,25 @@ class Client {
     private errors: any[] = [];
 
     constructor(opts: any = {}) {
-        this.opts.project = opts.project;
-        this.opts.apiKey = opts.apiKey;
-        this.opts.endpoint = opts.endpoint;
-        this.opts.timeout = opts.timeout || 10000;
-        this.opts.notifications = opts.notifications;
+        this.opts = opts;
+        this.opts.host = this.opts.host || 'https://api.airbrake.io';
+        this.opts.timeout = this.opts.timeout || 10000;
 
         this.processor = opts.processor || stacktracejsProcessor;
-        this.addReporter(opts.reporter || detectReporter());
+        this.addReporter(opts.reporter || detectReporter(opts));
 
-        this.addFilter(ignoreMessageFilter);
+        this.addFilter(ignoreFilter);
+        this.addFilter(makeDebounceFilter());
         this.addFilter(uncaughtMessageFilter);
         this.addFilter(angularMessageFilter);
 
         if (typeof window === 'object') {
             this.addFilter(windowFilter);
 
-            window.addEventListener('online', this.onOnline.bind(this));
-            window.addEventListener('offline', () => this.offline = true);
+            if (typeof window.addEventListener === 'function') {
+                window.addEventListener('online', this.onOnline.bind(this));
+                window.addEventListener('offline', () => this.offline = true);
+            }
         } else {
             this.addFilter(nodeFilter);
         }
@@ -76,14 +74,17 @@ class Client {
     addReporter(name: string|Reporter): void {
         let reporter: Reporter;
         switch (name) {
+        case 'fetch':
+            reporter = fetchReporter;
+            break;
         case 'node':
             reporter = nodeReporter;
             break;
-        case 'compat':
-            reporter = compatReporter;
-            break;
         case 'xhr':
             reporter = xhrReporter;
+            break;
+        case 'jsonp':
+            reporter = jsonpReporter;
             break;
         default:
             reporter = name as Reporter;
@@ -103,7 +104,13 @@ class Client {
 
         if (!err.error) {
             let reason = new Error(
-                `notify: got err=${JSON.stringify(err.error)}, wanted an Error`);
+                `faultline-js: got err=${JSON.stringify(err.error)}, wanted an Error`);
+            promise.reject(reason);
+            return promise;
+        }
+
+        if (this.opts.ignoreWindowError && err.context && err.context.windowError) {
+            let reason = new Error('faultline-js: window error is ignored');
             promise.reject(reason);
             return promise;
         }
@@ -122,6 +129,7 @@ class Client {
             errors: [],
             context: Object.assign({
                 language: 'JavaScript',
+                severity: 'error',
                 notifier: {
                     name: 'faultline-js',
                     version: VERSION,
@@ -144,11 +152,13 @@ class Client {
             for (let filter of this.filters) {
                 let r = filter(notice);
                 if (r === null) {
+                    promise.reject(new Error('faultline-js: error is filtered'));
                     return;
                 }
                 notice = r;
             }
 
+            // mod
             if (notice.errors) {
                 notice.errors = notice.errors.map((err) => {
                     if (!err.type) {
@@ -166,7 +176,7 @@ class Client {
         return promise;
     }
 
-    wrap(fn): FunctionWrapper {
+    wrap(fn): FuncWrapper {
         if (fn.__airbrake) {
             return fn;
         }
@@ -182,7 +192,7 @@ class Client {
                 historian.ignoreNextWindowError();
                 throw err;
             }
-        } as FunctionWrapper;
+        } as FuncWrapper;
 
         for (let prop in fn) {
             if (fn.hasOwnProperty(prop)) {
@@ -190,8 +200,8 @@ class Client {
             }
         }
 
-        airbrakeWrapper.__airbrake = true;
-        airbrakeWrapper.__inner = fn;
+        airbrakeWrapper._airbrake = true;
+        airbrakeWrapper.inner = fn;
 
         return airbrakeWrapper;
     }
