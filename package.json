@@ -1,6 +1,6 @@
 {
   "name": "faultline-js",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "faultline exception and error notifier for JavaScript.",
   "author": "k1LoW",
   "license": "MIT",
@@ -33,7 +33,8 @@
     "tslint-loader": "^3.5.3",
     "typescript": "^2.4.2",
     "uglify-js": "github:mishoo/UglifyJS2#harmony",
-    "webpack": "^3.0.0"
+    "webpack": "^3.0.0",
+    "octopublish": "*"
   },
   "main": "dist/client.js",
   "files": [
